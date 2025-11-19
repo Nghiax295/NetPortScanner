@@ -26,7 +26,11 @@ public class AuthServlet extends HttpServlet {
             throws ServletException, IOException {
         String action = request.getPathInfo();
         
-        switch (action == null ? "" : action) {
+        if (action == null || action.isEmpty()) {
+            action = "/login";
+        }
+        
+        switch (action) {
             case "/login":
                 request.getRequestDispatcher("/views/login.jsp").forward(request, response);
                 break;
@@ -37,7 +41,7 @@ public class AuthServlet extends HttpServlet {
                 logout(request, response);
                 break;
             default:
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND); 
         }
     }
     
