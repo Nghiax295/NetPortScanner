@@ -200,4 +200,5 @@ public class ScanJobDAO {
         result.setScannedAt(rs.getTimestamp("scanned_at").toLocalDateTime());
         return result;
     }
+    
 }

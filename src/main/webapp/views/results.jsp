@@ -29,13 +29,36 @@
     
     java.util.List results = resultsObj != null ? (java.util.List) resultsObj : null;
     
+    // Thêm biến lọc
+    String filter = request.getParameter("filter");
+    if (filter == null) filter = "all";
+    
     int openPorts = 0;
+    int closedPorts = 0;
+    int filteredPorts = 0;
+    int errorPorts = 0;
+    
+    java.util.List filteredResults = new java.util.ArrayList();
+    
     if (results != null) {
         for (Object resultObj : results) {
             java.lang.reflect.Method getStatusMethod = resultObj.getClass().getMethod("getStatus");
             Object resultStatus = getStatusMethod.invoke(resultObj);
-            if ("OPEN".equals(resultStatus.toString())) {
-                openPorts++;
+            String statusStr = resultStatus.toString();
+            
+            // Thống kê
+            if ("OPEN".equals(statusStr)) openPorts++;
+            else if ("CLOSED".equals(statusStr)) closedPorts++;
+            else if ("FILTERED".equals(statusStr)) filteredPorts++;
+            else if ("ERROR".equals(statusStr)) errorPorts++;
+            
+            // Lọc kết quả
+            if ("all".equals(filter) || 
+                ("open".equals(filter) && "OPEN".equals(statusStr)) ||
+                ("closed".equals(filter) && "CLOSED".equals(statusStr)) ||
+                ("filtered".equals(filter) && "FILTERED".equals(statusStr)) ||
+                ("error".equals(filter) && "ERROR".equals(statusStr))) {
+                filteredResults.add(resultObj);
             }
         }
     }
@@ -46,6 +69,12 @@
     <title>Scan Results - NetPortScanner</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .filter-btn.active {
+            font-weight: bold;
+            box-shadow: 0 0 0 2px #0d6efd;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -103,27 +132,108 @@
             </div>
         </div>
 
-        <% if (results != null && !results.isEmpty()) { %>
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body text-center">
+                        <h4><%= openPorts %></h4>
+                        <p class="mb-0">Open Ports</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-secondary">
+                    <div class="card-body text-center">
+                        <h4><%= closedPorts %></h4>
+                        <p class="mb-0">Closed Ports</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-body text-center">
+                        <h4><%= filteredPorts %></h4>
+                        <p class="mb-0">Filtered Ports</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-body text-center">
+                        <h4><%= errorPorts %></h4>
+                        <p class="mb-0">Error Ports</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="?jobId=<%= jobId %>&filter=all" 
+                       class="btn btn-outline-primary filter-btn <%= "all".equals(filter) ? "active" : "" %>">
+                        <i class="fas fa-list me-1"></i>All Ports (<%= results != null ? results.size() : 0 %>)
+                    </a>
+                    <a href="?jobId=<%= jobId %>&filter=open" 
+                       class="btn btn-outline-success filter-btn <%= "open".equals(filter) ? "active" : "" %>">
+                        <i class="fas fa-check-circle me-1"></i>Open Ports (<%= openPorts %>)
+                    </a>
+                    <a href="?jobId=<%= jobId %>&filter=closed" 
+                       class="btn btn-outline-secondary filter-btn <%= "closed".equals(filter) ? "active" : "" %>">
+                        <i class="fas fa-times-circle me-1"></i>Closed Ports (<%= closedPorts %>)
+                    </a>
+                    <a href="?jobId=<%= jobId %>&filter=filtered" 
+                       class="btn btn-outline-warning filter-btn <%= "filtered".equals(filter) ? "active" : "" %>">
+                        <i class="fas fa-shield-alt me-1"></i>Filtered Ports (<%= filteredPorts %>)
+                    </a>
+                    <a href="?jobId=<%= jobId %>&filter=error" 
+                       class="btn btn-outline-danger filter-btn <%= "error".equals(filter) ? "active" : "" %>">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Error Ports (<%= errorPorts %>)
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <% if (filteredResults != null && !filteredResults.isEmpty()) { %>
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Port Scan Results</h5>
-                    <span class="badge bg-primary">
-                        Open Ports: <%= openPorts %>
-                    </span>
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        <% 
+                            String filterText = "All Ports";
+                            if ("open".equals(filter)) filterText = "Open Ports";
+                            else if ("closed".equals(filter)) filterText = "Closed Ports";
+                            else if ("filtered".equals(filter)) filterText = "Filtered Ports";
+                            else if ("error".equals(filter)) filterText = "Error Ports";
+                        %>
+                        <%= filterText %> (<%= filteredResults.size() %>)
+                    </h5>
+                    <div>
+                        <span class="badge bg-primary me-2">
+                            Showing <%= filteredResults.size() %> ports
+                        </span>
+                        <% if (!"all".equals(filter)) { %>
+                            <a href="?jobId=<%= jobId %>&filter=all" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Clear Filter
+                            </a>
+                        <% } %>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-striped table-hover mb-0">
-                            <thead>
+                            <thead class="table-dark">
                                 <tr>
                                     <th>Port</th>
                                     <th>Status</th>
                                     <th>Response Time</th>
-                                    <th>Banner</th>
+                                    <th>Service</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <% for (Object resultObj : results) { 
+                                <% for (Object resultObj : filteredResults) { 
                                     java.lang.reflect.Method getPort = resultObj.getClass().getMethod("getPort");
                                     java.lang.reflect.Method getResultStatus = resultObj.getClass().getMethod("getStatus");
                                     java.lang.reflect.Method getResponseTime = resultObj.getClass().getMethod("getResponseTime");
@@ -156,21 +266,27 @@
                                                 }
                                             %>
                                             <span class="badge <%= badgeClass %>">
+                                                <i class="fas fa-<%= 
+                                                    "OPEN".equals(statusStr) ? "check" : 
+                                                    "CLOSED".equals(statusStr) ? "times" :
+                                                    "FILTERED".equals(statusStr) ? "shield-alt" : "exclamation-triangle"
+                                                %> me-1"></i>
                                                 <%= statusStr %>
                                             </span>
                                         </td>
                                         <td>
                                             <% if (responseTime != null) { %>
+                                                <i class="fas fa-clock me-1 text-muted"></i>
                                                 <%= responseTime %> ms
                                             <% } else { %>
-                                                -
+                                                <span class="text-muted">-</span>
                                             <% } %>
                                         </td>
                                         <td>
                                             <% if (banner != null && !banner.isEmpty()) { %>
-                                                <code><%= banner %></code>
+                                                <code class="bg-light p-1 rounded"><%= banner %></code>
                                             <% } else { %>
-                                                -
+                                                <span class="text-muted">Unknown</span>
                                             <% } %>
                                         </td>
                                     </tr>
@@ -181,10 +297,33 @@
                 </div>
             </div>
         <% } else { %>
-            <div class="alert alert-warning">
-                No scan results available for this job.
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                <% if (results == null || results.isEmpty()) { %>
+                    No scan results available for this job.
+                <% } else { %>
+                    No ports match the current filter "<%= filter %>".
+                    <a href="?jobId=<%= jobId %>&filter=all" class="alert-link">Show all ports</a>
+                <% } %>
             </div>
         <% } %>
     </div>
+
+    <script>
+        // Highlight active filter button
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            filterButtons.forEach(btn => {
+                if (btn.classList.contains('active')) {
+                    btn.classList.remove('btn-outline-primary', 'btn-outline-success', 'btn-outline-secondary', 'btn-outline-warning', 'btn-outline-danger');
+                    if (btn.href.includes('filter=open')) btn.classList.add('btn-success');
+                    else if (btn.href.includes('filter=closed')) btn.classList.add('btn-secondary');
+                    else if (btn.href.includes('filter=filtered')) btn.classList.add('btn-warning');
+                    else if (btn.href.includes('filter=error')) btn.classList.add('btn-danger');
+                    else btn.classList.add('btn-primary');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

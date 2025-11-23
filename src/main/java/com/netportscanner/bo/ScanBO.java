@@ -50,4 +50,8 @@ private ScanJobDAO scanJobDAO;
     public void saveScanResult(ScanResult result) {
         scanJobDAO.saveScanResult(result);
     }
+    
+    public ScanJob getJobById(Integer jobId) {
+		return scanJobDAO.getJobById(jobId).orElse(null);
+	}
 }
