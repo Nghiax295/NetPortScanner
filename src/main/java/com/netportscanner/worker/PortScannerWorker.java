@@ -220,8 +220,7 @@ public class PortScannerWorker implements Runnable {
             case 445: return "Server Message Block";
             case 546: 
             case 547: return "DHCPv6";
-            case 1443:
-            case 1434: return "Microsoft SQL Server";
+            case 1433: return "Microsoft SQL Server";
             case 554: return "RTSP";
             case 993: return "IMAPS";
             case 995: return "POP3S";
