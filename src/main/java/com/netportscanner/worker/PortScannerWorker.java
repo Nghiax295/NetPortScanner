@@ -8,8 +8,10 @@ import com.netportscanner.bo.ScanBO;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -125,25 +127,25 @@ public class PortScannerWorker implements Runnable {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(job.getTargetHost(), port), CONNECT_TIMEOUT);
             result.setStatus(ScanResult.PortStatus.OPEN);
+
             try {
                 socket.setSoTimeout(1000);
-                InputStream input = socket.getInputStream();
-                OutputStream output = socket.getOutputStream();
                 String banner = grabBanner(socket, port, job.getTargetHost());
                 if (banner != null && !banner.trim().isEmpty()) {
                     result.setBanner(banner.substring(0, Math.min(banner.length(), 50)));
                 }
-            } catch (IOException e) {}
-            
-        } catch (IOException e) {
-            if (e.getMessage().contains("Connection refused")) {
-                result.setStatus(ScanResult.PortStatus.CLOSED);
-            } else if (e.getMessage().contains("Connect timed out")) {
-                result.setStatus(ScanResult.PortStatus.FILTERED);
-            } else {
-                result.setStatus(ScanResult.PortStatus.ERROR);
-            }
+            } catch (IOException readEx) {}
+
+        } catch (SocketTimeoutException timeoutEx) {
+            result.setStatus(ScanResult.PortStatus.FILTERED);
+
+        } catch (ConnectException connEx) {
+            result.setStatus(ScanResult.PortStatus.CLOSED);
+
+        } catch (IOException ioEx) {
+            result.setStatus(ScanResult.PortStatus.ERROR);
         }
+
         long endTime = System.currentTimeMillis();
         result.setResponseTime((int) (endTime - startTime));
         scanBO.saveScanResult(result);
